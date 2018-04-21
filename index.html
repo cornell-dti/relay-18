@@ -3,8 +3,9 @@
 	<head>
 		<meta charset=utf-8>
 		<title>Cornell DTI: Relay For Life 2018</title>
+		<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
 		<style>
-			body { margin: 0; }
+			body { margin: 0; font-family:'Open Sans', sans-serif; }
 			canvas { width: 100%; height: 100% }
 			#header {
 				height:100px;
@@ -13,13 +14,104 @@
 				background:#00000000;
 				width:100%;
 			}
+			#footer {
+				height:120px;
+				position: fixed;
+				bottom:0;
+				background:#000000;
+				width:100%;
+				border-top:1px solid white;
+			}
+			#footer-input {
+				width:50%;
+				height:100%;
+				background:#472A87;
+				display:inline-block;
+				float:left;
+				color:white;
+				text-align: center;
+			}
+			#footer-output {
+				width:50%;
+				height:100%;
+				background:#FFD504;
+				display:inline-block;
+				float:right;
+				color:#472A87;
+				text-align: center;
+			}
+			#numBalloons {
+				font-size:32px;
+			}
+			#submit {
+				cursor:pointer;
+				margin-left: 5px;
+				padding:5px;
+				border-radius:5px;
+				color:white;
+				background:#472A87;
+			}
 		</style>
 	</head>
 	<body>
 		<div id="header">
-			<img src="http://cornelldti.org/img/logos/cornelldti.png" height="90px" align="left">
-			<img src="https://www.relayforlife.org.au/globalassets/learn-images/logomainimage.jpg" height="90px" align="right">
+			<img src="dti-logo.png" height="90px" align="left">
+			<img src="relay-logo.jpg" height="90px" align="right">
 		</div>
+		<div id="footer">
+			<div id="footer-input">
+				<h3><span id="numBalloons">0</span> balloons</h3>
+				<h5 id="messageDisplay">Click on a balloon to uncover a message!</h5>
+			</div>
+			<div id="footer-output">
+				<h3>Add your own balloon for cancer support!</h3>
+				<form>
+				  Name:
+				  <input id="nameInput" type="text" name="name" size="8" style="margin-right:5px;">
+				  Message:
+				  <input id="messageInput" type="text" name="message" size="30">
+				  <span id="submit" onClick="addBalloon();">Add my balloon &#8250;</span>
+				</form>
+			</div>
+		</div>
+		<script src="https://www.gstatic.com/firebasejs/4.13.0/firebase.js"></script>
+		<script>
+		  // Initialize Firebase
+		  var config = {
+		    apiKey: "AIzaSyC-Vq5OoWD9UQOq3hmnJCeRrsOkU0b5W_c",
+		    authDomain: "relay-18.firebaseapp.com",
+		    databaseURL: "https://relay-18.firebaseio.com",
+		    projectId: "relay-18",
+		    storageBucket: "relay-18.appspot.com",
+		    messagingSenderId: "710850062928"
+		  };
+		  firebase.initializeApp(config);
+		  var database = firebase.database();
+		  var messagesRef = firebase.database().ref('test/messages');
+		  var numBalloons = 0;
+		  messagesRef.on('child_added', function(snapshot) {
+			console.log(snapshot.val());
+			addUniqueSphere(snapshot.val());
+			numBalloons++;
+			document.getElementById("numBalloons").innerHTML = numBalloons+"";
+		  });
+
+		  function showMessage(data) {
+		  	document.getElementById("messageDisplay").innerHTML = data.name + ": \"" + data.message + "\"";
+		  }
+
+		  function addBalloon() {
+		  	var name = document.getElementById("nameInput").value;
+		  	var message = document.getElementById("messageInput").value;
+		  	var now = new Date();
+		  	var newMessageRef = messagesRef.push();
+		  	newMessageRef.set({
+		  		name: name,
+		  		message: message,
+		  		timestamp: now.getTime()
+		  	})
+		  }
+		</script>
 		<script src="three.js"></script>
 		<script src="OrbitControls.js"></script>
 		<script src='threex.domevents.js'></script>
@@ -69,12 +161,9 @@
 
 			var spheres = [];
 
-			var numSpheres = 100;
+			var numSpheres = 0;
 			for (var i = 0; i < numSpheres; i++) {
 				addUniqueSphere({"message": i});
-			}
-			for (var i = 0; i < spheres.length; i++) {
-				scene.add(spheres[i]);
 			}
 
 			camera.position.z = 5;
@@ -93,11 +182,13 @@
 					spheres[i].scale.z += 0.0034 * contraction;
 					
 				}
-				if (spheres[0].scale.x >= 1.0) {
-					contraction = -1;
-				}
-				if (spheres[0].scale.x <= 0.9) {
-					contraction = 1;
+				if (spheres.length > 0) {
+					if (spheres[0].scale.x >= 1.0) {
+						contraction = -1;
+					}
+					if (spheres[0].scale.x <= 0.9) {
+						contraction = 1;
+					}
 				}
 
 				renderer.render( scene, camera );
@@ -122,9 +213,15 @@
 			}
 
 			function createSphere(x, y, z, radius, data) {
-				var geometry = new THREE.SphereGeometry( radius, 8, 8, 0, 6.3, 0, 3.1 );
+				const PURPLE = 0x8542c4;
+				const BLUE = 0x6e00d6;
+				const PINK = 0xa22aba;
+				var colors = [PURPLE, BLUE, PINK]
+				var randomColorIdx = Math.floor(Math.random()*3);
+				var randomColor = colors[randomColorIdx] 
+				var geometry = new THREE.SphereGeometry( radius, 20, 16, 0, 6.3, 0, 3.1 );
 				var material = new THREE.MeshPhongMaterial( { 
-					color: 0x702BB0,
+					color: randomColor,
 					side: THREE.DoubleSide,
 					flatShading: true
 				} );
@@ -138,7 +235,7 @@
 				))
 				sphere.data = data;
 				domEvents.addEventListener(sphere, 'click', function(event){
-					console.log('you clicked on the mesh. ' + JSON.stringify(sphere.data))
+					showMessage(sphere.data);
 				}, false)
 				sphere.position.x = x;
 				sphere.position.y = y;
